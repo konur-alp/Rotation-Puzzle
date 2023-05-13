@@ -1,0 +1,173 @@
+using System;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Input;
+
+namespace RotationPuzzle
+{
+    public class Game1 : Game
+    {
+        private GraphicsDeviceManager graphics;
+        private SpriteBatch spriteBatch;
+        Texture2D texture;
+        SpriteFont font;
+
+        //Rotation Puzzle: 9 parça 5'li dönüş
+        //Rotation Extreme: 11 parça 7'li dönüş
+        //Rotation 2D: + şeklinde 17 parça (4 + 4 + 4 + 4 + 1) 3'lü dönüş
+        
+        int[] parcalar = {0, 1, 2, 3, 4, 5, 6, 7, 8};
+        int timer = 0;
+        int merkez = 11;
+        bool basildi = false;
+        bool dur = false;
+        
+        int saniye = 0;
+
+        public Game1()
+        {
+            graphics = new GraphicsDeviceManager(this);
+            Content.RootDirectory = "Content";
+            IsMouseVisible = true;
+        }
+
+        protected override void Initialize()
+        {
+            graphics.IsFullScreen = true;
+            graphics.PreferredBackBufferWidth = GraphicsDevice.Adapter.CurrentDisplayMode.Width;
+            graphics.PreferredBackBufferHeight = GraphicsDevice.Adapter.CurrentDisplayMode.Height;
+            graphics.ApplyChanges();
+            base.Initialize();
+        }
+
+        protected override void LoadContent()
+        {
+            spriteBatch = new SpriteBatch(GraphicsDevice);
+            font = Content.Load<SpriteFont>("File");
+        }
+
+        protected override void Update(GameTime gameTime)
+        {
+            KeyboardState klavye = Keyboard.GetState();
+            MouseState fare = Mouse.GetState();
+
+            if (klavye.IsKeyDown(Keys.R))
+            {
+                for (int i = 0; i < 9; i++)
+                    parcalar[i] = i;
+                saniye = 0;
+                dur = false;
+            }
+            else if (klavye.IsKeyDown(Keys.Space))
+            {
+                if (SolvedState())
+                {
+                    int onceki = 0;
+                    for (int i = 0; i < 20; i++)
+                    {
+                        Random rnd = new Random();
+                        int r = rnd.Next(2, 7);
+                        if (r == onceki && r < 6)
+                            r++;
+                        else if (r == onceki)
+                            r = 2;
+                        Scrambler(r);
+                        onceki = r;
+                    }
+                    dur = true;
+                }
+            }
+            else if (klavye.IsKeyDown(Keys.T) && !SolvedState() && (saniye == 0 || dur == true))
+            {
+                saniye = 1;
+                dur = false;
+            }
+            else if (klavye.IsKeyDown(Keys.Escape))
+                Exit();
+
+            if (timer == 0)
+            {
+                if (fare.LeftButton == ButtonState.Pressed)
+                {
+                    if (!basildi)
+                    {
+                        basildi = true;
+                        if (saniye > 0 && SolvedState())
+                            dur = true;
+                        for (int i = 2; i < 7; i++)
+                        {
+                            if (fare.X >= 50 + (i * (graphics.PreferredBackBufferWidth - 100) / 9) && fare.X < 50 + ((i + 1) * (graphics.PreferredBackBufferWidth - 100) / 9) && fare.Y >= (graphics.PreferredBackBufferHeight - ((graphics.PreferredBackBufferWidth - 100) / 9)) / 2 && fare.Y <= (graphics.PreferredBackBufferWidth - 100) / 9 + (graphics.PreferredBackBufferHeight - ((graphics.PreferredBackBufferWidth - 100) / 9)) / 2)
+                            {
+                                timer = 1;
+                                merkez = i;
+                                break;
+                            }
+                        }
+                    }
+                }
+                else
+                    basildi = false;
+            }
+            else
+            {
+                timer++;
+                if (timer > 9)
+                {
+                    Scrambler(merkez);
+                    merkez = 11;
+                    timer = 0;
+                }
+            }
+
+            if (!SolvedState() && saniye > 0 && !dur)
+                saniye++;
+            base.Update(gameTime);
+        }
+
+        public void Scrambler(int m)
+        {
+            int y;
+            y = parcalar[m - 2];
+            parcalar[m - 2] = parcalar[m + 2];
+            parcalar[m + 2] = y;
+            y = parcalar[m - 1];
+            parcalar[m - 1] = parcalar[m + 1];
+            parcalar[m + 1] = y;
+        }
+
+        public bool SolvedState()
+        {
+            if (parcalar[0] == 0 && parcalar[1] == 1 && parcalar[2] == 2 && parcalar[3] == 3 && parcalar[4] == 4 && parcalar[5] == 5 && parcalar[6] == 6 && parcalar[7] == 7 && parcalar[8] == 8)
+                return true;
+            else
+                return false;
+        }
+        protected override void Draw(GameTime gameTime)
+        {
+            GraphicsDevice.Clear(Color.LightGray);
+            spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+            texture = Content.Load<Texture2D>("kare");
+            spriteBatch.Draw(texture, new Rectangle(50, (graphics.PreferredBackBufferHeight - ((graphics.PreferredBackBufferWidth - 100) / 9)) / 2, graphics.PreferredBackBufferWidth - 100, (graphics.PreferredBackBufferWidth - 100) / 9), new Color(40, 40, 40));
+            for (int i = 0; i < 9; i++)
+            {
+                if (timer == 0 || (timer > 0 && Math.Abs(i - merkez) > 2))
+                    spriteBatch.Draw(texture, new Rectangle((i * (graphics.PreferredBackBufferWidth - 100) / 9) + 50 + (graphics.PreferredBackBufferWidth - 100) / 18, (graphics.PreferredBackBufferWidth - 100) / 18 + (graphics.PreferredBackBufferHeight - ((graphics.PreferredBackBufferWidth - 100) / 9)) / 2, (graphics.PreferredBackBufferWidth - 100) / 9, (graphics.PreferredBackBufferWidth - 100) / 9), new Rectangle(parcalar[i] * 30, 0, 30, 30), Color.White, 0, new Vector2(15, 15), SpriteEffects.None, 0);
+                else
+                    spriteBatch.Draw(texture, new Rectangle((merkez * (graphics.PreferredBackBufferWidth - 100) / 9) + 50 + (graphics.PreferredBackBufferWidth - 100) / 18, ((i - merkez) * (graphics.PreferredBackBufferWidth - 100) / 9) + (graphics.PreferredBackBufferWidth - 100) / 18 + (graphics.PreferredBackBufferHeight - ((graphics.PreferredBackBufferWidth - 100) / 9)) / 2, (graphics.PreferredBackBufferWidth - 100) / 9, (graphics.PreferredBackBufferWidth - 100) / 9), new Rectangle(parcalar[i] * 30, 0, 30, 30), Color.White, (float)(Math.PI / 2), new Vector2(15, 15), SpriteEffects.None, 0);
+            }
+            String kronometre = "" + (saniye % 60);
+            if (saniye % 60 < 10)
+                kronometre = "0" + kronometre;
+            kronometre = ((saniye / 60) % 60) + ":" + kronometre;
+            if ((saniye / 60) % 60 < 10)
+                kronometre = "0" + kronometre;
+            kronometre = (saniye / 3600) + ":" + kronometre;
+            if (saniye / 3600 < 10)
+                kronometre = "0" + kronometre;
+            spriteBatch.DrawString(font, "Press SPACE to scramble,\nT to start the timer,\nR to reset everything,\nESC to quit the game", new Vector2(10, 10), new Color(64, 64, 64));
+            spriteBatch.DrawString(font, kronometre + "", new Vector2(graphics.PreferredBackBufferWidth - 115, 10), new Color(64, 64, 64));
+            spriteBatch.End();
+            base.Draw(gameTime);
+        }
+    }
+}
